@@ -1,0 +1,122 @@
+# PIPELINE DEFINITION
+# Name: train-validation-test-split
+# Inputs:
+#    df_train: system.Dataset
+#    validation_size: float [Default: 0.2]
+# Outputs:
+#    dataset_train: system.Dataset
+#    dataset_valid: system.Dataset
+components:
+  comp-train-validation-test-split:
+    executorLabel: exec-train-validation-test-split
+    inputDefinitions:
+      artifacts:
+        df_train:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+      parameters:
+        validation_size:
+          defaultValue: 0.2
+          isOptional: true
+          parameterType: NUMBER_DOUBLE
+    outputDefinitions:
+      artifacts:
+        dataset_train:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        dataset_valid:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+deploymentSpec:
+  executors:
+    exec-train-validation-test-split:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - train_validation_test_split
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.7.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'pandas' 'gcsfs'\
+          \ 'scikit-learn' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef train_validation_test_split(\n    df_train: Input[Dataset],\n\
+          \    dataset_train: Output[Dataset],\n    dataset_valid: Output[Dataset],\n\
+          \    validation_size: float = 0.2,\n):\n\n    import pandas as pd\n    from\
+          \ sklearn.model_selection import train_test_split\n\n    df_train = pd.read_csv(df_train.path\
+          \ + \".csv\")\n\n    df_train, df_valid = train_test_split(\n        df_train,\
+          \ test_size=validation_size, random_state=42\n    )\n\n    df_train.to_csv(dataset_train.path\
+          \ + \".csv\", index=False)\n    df_valid.to_csv(dataset_valid.path + \"\
+          .csv\", index=False)\n\n"
+        image: python:3.9
+pipelineInfo:
+  name: train-validation-test-split
+root:
+  dag:
+    outputs:
+      artifacts:
+        dataset_train:
+          artifactSelectors:
+          - outputArtifactKey: dataset_train
+            producerSubtask: train-validation-test-split
+        dataset_valid:
+          artifactSelectors:
+          - outputArtifactKey: dataset_valid
+            producerSubtask: train-validation-test-split
+    tasks:
+      train-validation-test-split:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-train-validation-test-split
+        inputs:
+          artifacts:
+            df_train:
+              componentInputArtifact: df_train
+          parameters:
+            validation_size:
+              componentInputParameter: validation_size
+        taskInfo:
+          name: train-validation-test-split
+  inputDefinitions:
+    artifacts:
+      df_train:
+        artifactType:
+          schemaTitle: system.Dataset
+          schemaVersion: 0.0.1
+    parameters:
+      validation_size:
+        defaultValue: 0.2
+        isOptional: true
+        parameterType: NUMBER_DOUBLE
+  outputDefinitions:
+    artifacts:
+      dataset_train:
+        artifactType:
+          schemaTitle: system.Dataset
+          schemaVersion: 0.0.1
+      dataset_valid:
+        artifactType:
+          schemaTitle: system.Dataset
+          schemaVersion: 0.0.1
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.7.0

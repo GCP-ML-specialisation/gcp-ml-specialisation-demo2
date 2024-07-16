@@ -1,0 +1,96 @@
+# PIPELINE DEFINITION
+# Name: training
+# Inputs:
+#    df_train: system.Dataset
+# Outputs:
+#    trained_model: system.Model
+components:
+  comp-training:
+    executorLabel: exec-training
+    inputDefinitions:
+      artifacts:
+        df_train:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        trained_model:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+deploymentSpec:
+  executors:
+    exec-training:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - training
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.7.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'pandas' 'gcsfs'\
+          \ 'scikit-learn' 'xgboost' 'joblib' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef training(df_train: Input[Dataset], trained_model: Output[Model]):\n\
+          \n    import pandas as pd\n    import os\n    import joblib\n    from xgboost.sklearn\
+          \ import XGBRegressor\n\n    df_train = pd.read_csv(df_train.path + \".csv\"\
+          )\n\n    x = df_train.drop(\"Purchase\", axis=1)\n    y = df_train[\"Purchase\"\
+          ]\n\n    xgb_reg = XGBRegressor(learning_rate=1.0, max_depth=6, min_child_weight=40,\
+          \ seed=0)\n    xgb_reg.fit(x, y)\n\n    trained_model.metadata[\"framework\"\
+          ] = \"XGBoost\"\n    os.makedirs(trained_model.path, exist_ok=True)\n  \
+          \  joblib.dump(xgb_reg, os.path.join(trained_model.path, \"model.joblib\"\
+          ))\n\n"
+        image: python:3.9
+pipelineInfo:
+  name: training
+root:
+  dag:
+    outputs:
+      artifacts:
+        trained_model:
+          artifactSelectors:
+          - outputArtifactKey: trained_model
+            producerSubtask: training
+    tasks:
+      training:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-training
+        inputs:
+          artifacts:
+            df_train:
+              componentInputArtifact: df_train
+        taskInfo:
+          name: training
+  inputDefinitions:
+    artifacts:
+      df_train:
+        artifactType:
+          schemaTitle: system.Dataset
+          schemaVersion: 0.0.1
+  outputDefinitions:
+    artifacts:
+      trained_model:
+        artifactType:
+          schemaTitle: system.Model
+          schemaVersion: 0.0.1
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.7.0

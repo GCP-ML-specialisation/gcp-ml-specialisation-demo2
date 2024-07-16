@@ -1,0 +1,26 @@
+PROJECT_ID = "prj-dev-mlbf-flt-01-29e5" 
+! gcloud config set project {PROJECT_ID}
+
+REGION = "europe-west2"  
+ACCOUNT_ID = "nunzio.gatti@gcpclouddelivery.com"
+! gcloud config set account {ACCOUNT_ID}
+
+CONFIG = "ml-specialisation"
+!gcloud config configurations create  {CONFIG}
+
+!gcloud auth application-default login
+
+!gcloud auth login
+
+BUCKET_URI = "gs://pipeline_black_friday/"
+! gsutil mb -l $REGION -p $PROJECT_ID $BUCKET_URI
+
+
+SERVICE_ACCOUNT = "project-service-account@prj-dev-mlbf-flt-01-29e5.iam.gserviceaccount.com"
+# SERVICE_ACCOUNT = "terraform-dev-sa@prj-plat-seed-bd47.iam.gserviceaccount.com"
+
+!gsutil iam ch serviceAccount:{SERVICE_ACCOUNT}:roles/storage.objectCreator $BUCKET_URI
+!gsutil iam ch serviceAccount:{SERVICE_ACCOUNT}:roles/storage.objectViewer $BUCKET_URI
+
+API_ENDPOINT = "{}-aiplatform.googleapis.com".format(REGION)
+PIPELINE_ROOT = "{}/pipeline_root/intro".format(BUCKET_URI)
