@@ -2,9 +2,14 @@ from kfp.v2.dsl import component, Input, Output, Dataset
 
 
 @component(
-    packages_to_install=["pandas", "gcsfs", "scikit-learn", "numpy"],
+    packages_to_install=[
+        "pandas",
+        "gcsfs",
+        "scikit-learn==1.3.0",
+        "numpy==1.23.5",
+    ],
     output_component_file="feature_engineering.yaml",
-    base_image="python:3.9",
+    base_image="python:3.10",
 )
 def data_transformation(
     df_train: Input[Dataset],
@@ -49,9 +54,14 @@ def data_transformation(
 
 
 @component(
-    packages_to_install=["pandas", "gcsfs", "scikit-learn", "numpy"],
+    packages_to_install=[
+        "pandas",
+        "gcsfs",
+        "scikit-learn==1.3.0",
+        "numpy==1.23.5",
+    ],
     output_component_file="basic_preprocessing.yaml",
-    base_image="python:3.9",
+    base_image="python:3.10",
 )
 def basic_preprocessing(
     bucket_URI: str,
@@ -109,9 +119,14 @@ def basic_preprocessing(
 
 
 @component(
-    packages_to_install=["pandas", "gcsfs", "scikit-learn"],
+    packages_to_install=[
+        "pandas",
+        "gcsfs",
+        "numpy==1.23.5",
+        "scikit-learn==1.3.0",
+    ],
     output_component_file="train_validation_test_split.yaml",
-    base_image="python:3.9",
+    base_image="python:3.10",
 )
 def train_validation_test_split(
     df_train: Input[Dataset],

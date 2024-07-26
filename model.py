@@ -10,34 +10,47 @@ from kfp.v2.dsl import (
 
 
 @component(
-    packages_to_install=["pandas", "gcsfs", "scikit-learn", "xgboost", "joblib"],
+    packages_to_install=[
+        "pandas",
+        "gcsfs",
+        "numpy==1.23.5",
+        "scikit-learn==1.3.0",
+        "joblib",
+    ],
     output_component_file="training.yaml",
-    base_image="python:3.9",
+    base_image="python:3.10",
 )
 def training(df_train: Input[Dataset], trained_model: Output[Model]):
 
     import pandas as pd
     import os
     import joblib
-    from xgboost.sklearn import XGBRegressor
+    from sklearn.ensemble import RandomForestRegressor
 
     df_train = pd.read_csv(df_train.path + ".csv")
 
     x = df_train.drop("Purchase", axis=1)
     y = df_train["Purchase"]
 
-    xgb_reg = XGBRegressor(learning_rate=1.0, max_depth=6, min_child_weight=40, seed=0)
-    xgb_reg.fit(x, y)
+    regressor = RandomForestRegressor(n_estimators=10, random_state=0, oob_score=True)
 
-    trained_model.metadata["framework"] = "XGBoost"
+    regressor.fit(x, y)
+
+    trained_model.metadata["framework"] = "RandomForestRegressor"
     os.makedirs(trained_model.path, exist_ok=True)
-    joblib.dump(xgb_reg, os.path.join(trained_model.path, "model.joblib"))
+    joblib.dump(regressor, os.path.join(trained_model.path, "model.joblib"))
 
 
 @component(
-    packages_to_install=["pandas", "gcsfs", "scikit-learn", "xgboost", "joblib"],
+    packages_to_install=[
+        "pandas",
+        "numpy==1.23.5",
+        "gcsfs",
+        "scikit-learn==1.3.0",
+        "joblib",
+    ],
     output_component_file="model_evaluation.yaml",
-    base_image="python:3.9",
+    base_image="python:3.10",
 )
 def model_evaluation(
     test_set: Input[Dataset],
@@ -46,21 +59,25 @@ def model_evaluation(
 ):
     import pandas as pd
     from math import sqrt
+    import os
     import joblib
+    import numpy as np
     from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
     data = pd.read_csv(test_set.path + ".csv")
-    file_name = training_model.uri
+    file_name = os.path.join(training_model.path, "model.joblib")
+
     model = joblib.load(file_name)
 
     X_test = data.drop("Purchase", axis=1)
-    y_test = data["Purchase"]
-    y_pred = model.predict(X_test)
+    y_test = np.array(data["Purchase"])
 
-    mae = mean_absolute_error(y_test, y_pred)
-    mse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
-    rmse = sqrt(mean_squared_error(y_test, y_pred))
+    xgb_y_pred = model.predict(X_test)
+
+    mae = mean_absolute_error(y_test, xgb_y_pred)
+    mse = mean_squared_error(y_test, xgb_y_pred)
+    r2 = r2_score(y_test, xgb_y_pred)
+    rmse = sqrt(mean_squared_error(y_test, xgb_y_pred))
 
     training_model.metadata["mean_absolute_error"] = mae
     training_model.metadata["mean_squared_error"] = mse
@@ -75,6 +92,7 @@ def model_evaluation(
 
 @component(
     packages_to_install=["google-cloud-aiplatform==1.25.0"],
+    base_image="python:3.10",
 )
 def deploy_xgboost_model(
     model: Input[Model],
@@ -99,9 +117,11 @@ def deploy_xgboost_model(
     deployed_model = aiplatform.Model.upload(
         display_name="bf_model",
         artifact_uri=model.uri,
-        serving_container_image_uri="us-docker.pkg.dev/vertex-ai/prediction/xgboost-cpu.1-6:latest",
+        serving_container_image_uri="us-docker.pkg.dev/vertex-ai/prediction/sklearn-cpu.1-3:latest",
     )
-    endpoint = deployed_model.deploy(machine_type="n1-standard-4")
+    # endpoint = deployed_model.deploy(
+    #     deployed_model_display='deployment_test'
+    #     machine_type="n1-standard-4")
 
-    vertex_endpoint.uri = endpoint.resource_name
+    # vertex_endpoint.uri = endpoint.resource_name
     vertex_model.uri = deployed_model.resource_name

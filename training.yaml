@@ -36,7 +36,7 @@ deploymentSpec:
           \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.7.0'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
           \  python3 -m pip install --quiet --no-warn-script-location 'pandas' 'gcsfs'\
-          \ 'scikit-learn' 'xgboost' 'joblib' && \"$0\" \"$@\"\n"
+          \ 'numpy==1.23.5' 'scikit-learn==1.3.0' 'joblib' && \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -49,15 +49,15 @@ deploymentSpec:
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
           \ *\n\ndef training(df_train: Input[Dataset], trained_model: Output[Model]):\n\
-          \n    import pandas as pd\n    import os\n    import joblib\n    from xgboost.sklearn\
-          \ import XGBRegressor\n\n    df_train = pd.read_csv(df_train.path + \".csv\"\
-          )\n\n    x = df_train.drop(\"Purchase\", axis=1)\n    y = df_train[\"Purchase\"\
-          ]\n\n    xgb_reg = XGBRegressor(learning_rate=1.0, max_depth=6, min_child_weight=40,\
-          \ seed=0)\n    xgb_reg.fit(x, y)\n\n    trained_model.metadata[\"framework\"\
-          ] = \"XGBoost\"\n    os.makedirs(trained_model.path, exist_ok=True)\n  \
-          \  joblib.dump(xgb_reg, os.path.join(trained_model.path, \"model.joblib\"\
-          ))\n\n"
-        image: python:3.9
+          \n    import pandas as pd\n    import os\n    import joblib\n    from sklearn.ensemble\
+          \ import RandomForestRegressor\n\n    df_train = pd.read_csv(df_train.path\
+          \ + \".csv\")\n\n    x = df_train.drop(\"Purchase\", axis=1)\n    y = df_train[\"\
+          Purchase\"]\n\n    regressor = RandomForestRegressor(n_estimators=10, random_state=0,\
+          \ oob_score=True)\n\n    regressor.fit(x, y)\n\n    trained_model.metadata[\"\
+          framework\"] = \"RandomForestRegressor\"\n    os.makedirs(trained_model.path,\
+          \ exist_ok=True)\n    joblib.dump(regressor, os.path.join(trained_model.path,\
+          \ \"model.joblib\"))\n\n"
+        image: python:3.10
 pipelineInfo:
   name: training
 root:
