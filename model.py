@@ -16,29 +16,75 @@ from kfp.v2.dsl import (
         "numpy==1.23.5",
         "scikit-learn==1.3.0",
         "joblib",
+        "scipy",
     ],
     output_component_file="training.yaml",
     base_image="python:3.10",
 )
-def training(df_train: Input[Dataset], trained_model: Output[Model]):
+def training_hyperp_tuning(
+    df_train: Input[Dataset],
+    trained_model: Output[Model],
+):
 
     import pandas as pd
     import os
     import joblib
     from sklearn.ensemble import RandomForestRegressor
+    from sklearn.model_selection import (
+        RandomizedSearchCV,
+        StratifiedKFold,
+    )
+    from scipy.stats import randint, uniform
 
     df_train = pd.read_csv(df_train.path + ".csv")
 
     x = df_train.drop("Purchase", axis=1)
     y = df_train["Purchase"]
 
-    regressor = RandomForestRegressor(n_estimators=10, random_state=0, oob_score=True)
+    regressor = RandomForestRegressor(n_estimators=10, random_state=42, oob_score=True)
 
-    regressor.fit(x, y)
+    # Define the parameter distributions
+    param_dist = {
+        "n_estimators": randint(50, 500),  # Number of trees in the forest
+        "max_features": [
+            "auto",
+            "sqrt",
+            "log2",
+        ],  # Number of features to consider at each split
+        "max_depth": randint(10, 100),  # Maximum depth of the tree
+        "min_samples_split": randint(
+            2, 20
+        ),  # Minimum number of samples required to split a node
+        "min_samples_leaf": randint(
+            1, 20
+        ),  # Minimum number of samples required to be at a leaf node
+        "bootstrap": [
+            True,
+            False,
+        ],  # Whether bootstrap samples are used when building trees
+        "min_impurity_decrease": uniform(
+            0, 0.1
+        ),  # Threshold for early stopping in tree growth
+    }
+
+    param_comb = 20
+
+    random_search = RandomizedSearchCV(
+        regressor,
+        param_distributions=param_dist,
+        n_iter=param_comb,
+        scoring="neg_root_mean_squared_error",
+        cv=5,
+        verbose=4,
+        random_state=42,
+    )
+
+    random_search.fit(x, y)
+    regressor_best = random_search.best_estimator_
 
     trained_model.metadata["framework"] = "RandomForestRegressor"
     os.makedirs(trained_model.path, exist_ok=True)
-    joblib.dump(regressor, os.path.join(trained_model.path, "model.joblib"))
+    joblib.dump(regressor_best, os.path.join(trained_model.path, "model.joblib"))
 
 
 @component(
@@ -82,19 +128,19 @@ def model_evaluation(
     training_model.metadata["mean_absolute_error"] = mae
     training_model.metadata["mean_squared_error"] = mse
     training_model.metadata["R2_Score"] = r2
-    training_model.metadata["root_mean_absolute_error"] = rmse
+    training_model.metadata["root_mean_squared_error"] = rmse
 
     kpi.log_metric("mean_absolute_error", mae)
     kpi.log_metric("mean_squared_error", mse)
     kpi.log_metric("R2_Score", r2)
-    kpi.log_metric("root_mean_absolute_error", rmse)
+    kpi.log_metric("root_mean_squared_error", rmse)
 
 
 @component(
     packages_to_install=["google-cloud-aiplatform==1.25.0"],
     base_image="python:3.10",
 )
-def deploy_xgboost_model(
+def deploy_rf_model(
     model: Input[Model],
     project_id: str,
     vertex_endpoint: Output[Artifact],
@@ -119,9 +165,10 @@ def deploy_xgboost_model(
         artifact_uri=model.uri,
         serving_container_image_uri="us-docker.pkg.dev/vertex-ai/prediction/sklearn-cpu.1-3:latest",
     )
-    # endpoint = deployed_model.deploy(
-    #     deployed_model_display='deployment_test'
-    #     machine_type="n1-standard-4")
+    endpoint = deployed_model.deploy(
+        deployed_model_display_name="bf_random_forest_model",
+        machine_type="n1-standard-4",
+    )
 
-    # vertex_endpoint.uri = endpoint.resource_name
+    vertex_endpoint.uri = endpoint.resource_name
     vertex_model.uri = deployed_model.resource_name

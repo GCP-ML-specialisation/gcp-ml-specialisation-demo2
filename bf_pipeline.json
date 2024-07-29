@@ -70,8 +70,8 @@
         }
       }
     },
-    "comp-deploy-xgboost-model": {
-      "executorLabel": "exec-deploy-xgboost-model",
+    "comp-deploy-rf-model": {
+      "executorLabel": "exec-deploy-rf-model",
       "inputDefinitions": {
         "artifacts": {
           "model": {
@@ -173,8 +173,8 @@
         }
       }
     },
-    "comp-training": {
-      "executorLabel": "exec-training",
+    "comp-training-hyperp-tuning": {
+      "executorLabel": "exec-training-hyperp-tuning",
       "inputDefinitions": {
         "artifacts": {
           "df_train": {
@@ -240,13 +240,13 @@
           "image": "python:3.10"
         }
       },
-      "exec-deploy-xgboost-model": {
+      "exec-deploy-rf-model": {
         "container": {
           "args": [
             "--executor_input",
             "{{$}}",
             "--function_to_execute",
-            "deploy_xgboost_model"
+            "deploy_rf_model"
           ],
           "command": [
             "sh",
@@ -255,7 +255,7 @@
             "sh",
             "-ec",
             "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
-            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef deploy_xgboost_model(\n    model: Input[Model],\n    project_id: str,\n    vertex_endpoint: Output[Artifact],\n    vertex_model: Output[Model],\n):\n    \"\"\"Deploys an XGBoost model to Vertex AI Endpoint.\n\n    Args:\n        model: The model to deploy.\n        project_id: The project ID of the Vertex AI Endpoint.\n\n    Returns:\n        vertex_endpoint: The deployed Vertex AI Endpoint.\n        vertex_model: The deployed Vertex AI Model.\n    \"\"\"\n    from google.cloud import aiplatform\n\n    aiplatform.init(project=project_id)\n\n    deployed_model = aiplatform.Model.upload(\n        display_name=\"bf_model\",\n        artifact_uri=model.uri,\n        serving_container_image_uri=\"us-docker.pkg.dev/vertex-ai/prediction/sklearn-cpu.1-3:latest\",\n    )\n    # endpoint = deployed_model.deploy(\n    #     deployed_model_display='deployment_test'\n    #     machine_type=\"n1-standard-4\")\n\n    # vertex_endpoint.uri = endpoint.resource_name\n    vertex_model.uri = deployed_model.resource_name\n\n"
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef deploy_rf_model(\n    model: Input[Model],\n    project_id: str,\n    vertex_endpoint: Output[Artifact],\n    vertex_model: Output[Model],\n):\n    \"\"\"Deploys an XGBoost model to Vertex AI Endpoint.\n\n    Args:\n        model: The model to deploy.\n        project_id: The project ID of the Vertex AI Endpoint.\n\n    Returns:\n        vertex_endpoint: The deployed Vertex AI Endpoint.\n        vertex_model: The deployed Vertex AI Model.\n    \"\"\"\n    from google.cloud import aiplatform\n\n    aiplatform.init(project=project_id)\n\n    deployed_model = aiplatform.Model.upload(\n        display_name=\"bf_model\",\n        artifact_uri=model.uri,\n        serving_container_image_uri=\"us-docker.pkg.dev/vertex-ai/prediction/sklearn-cpu.1-3:latest\",\n    )\n    endpoint = deployed_model.deploy(\n        deployed_model_display_name=\"bf_random_forest_model\",\n        machine_type=\"n1-standard-4\",\n    )\n\n    vertex_endpoint.uri = endpoint.resource_name\n    vertex_model.uri = deployed_model.resource_name\n\n"
           ],
           "image": "python:3.10"
         }
@@ -300,22 +300,22 @@
           "image": "python:3.10"
         }
       },
-      "exec-training": {
+      "exec-training-hyperp-tuning": {
         "container": {
           "args": [
             "--executor_input",
             "{{$}}",
             "--function_to_execute",
-            "training"
+            "training_hyperp_tuning"
           ],
           "command": [
             "sh",
             "-c",
-            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.7.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&  python3 -m pip install --quiet --no-warn-script-location 'pandas' 'gcsfs' 'numpy==1.23.5' 'scikit-learn==1.3.0' 'joblib' && \"$0\" \"$@\"\n",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.7.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&  python3 -m pip install --quiet --no-warn-script-location 'pandas' 'gcsfs' 'numpy==1.23.5' 'scikit-learn==1.3.0' 'joblib' 'scipy' && \"$0\" \"$@\"\n",
             "sh",
             "-ec",
             "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
-            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef training(df_train: Input[Dataset], trained_model: Output[Model]):\n\n    import pandas as pd\n    import os\n    import joblib\n    from sklearn.ensemble import RandomForestRegressor\n\n    df_train = pd.read_csv(df_train.path + \".csv\")\n\n    x = df_train.drop(\"Purchase\", axis=1)\n    y = df_train[\"Purchase\"]\n\n    regressor = RandomForestRegressor(n_estimators=10, random_state=0, oob_score=True)\n\n    regressor.fit(x, y)\n\n    trained_model.metadata[\"framework\"] = \"RandomForestRegressor\"\n    os.makedirs(trained_model.path, exist_ok=True)\n    joblib.dump(regressor, os.path.join(trained_model.path, \"model.joblib\"))\n\n"
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef training_hyperp_tuning(\n    df_train: Input[Dataset],\n    trained_model: Output[Model],\n):\n\n    import pandas as pd\n    import os\n    import joblib\n    from sklearn.ensemble import RandomForestRegressor\n    from sklearn.model_selection import (\n        RandomizedSearchCV,\n        StratifiedKFold,\n    )\n    from scipy.stats import randint, uniform\n\n    df_train = pd.read_csv(df_train.path + \".csv\")\n\n    x = df_train.drop(\"Purchase\", axis=1)\n    y = df_train[\"Purchase\"]\n\n    regressor = RandomForestRegressor(n_estimators=10, random_state=42, oob_score=True)\n\n    # Define the parameter distributions\n    param_dist = {\n        \"n_estimators\": randint(50, 500),  # Number of trees in the forest\n        \"max_features\": [\n            \"auto\",\n            \"sqrt\",\n            \"log2\",\n        ],  # Number of features to consider at each split\n        \"max_depth\": randint(10, 100),  # Maximum depth of the tree\n        \"min_samples_split\": randint(\n            2, 20\n        ),  # Minimum number of samples required to split a node\n        \"min_samples_leaf\": randint(\n            1, 20\n        ),  # Minimum number of samples required to be at a leaf node\n        \"bootstrap\": [\n            True,\n            False,\n        ],  # Whether bootstrap samples are used when building trees\n        \"min_impurity_decrease\": uniform(\n            0, 0.1\n        ),  # Threshold for early stopping in tree growth\n    }\n\n    param_comb = 20\n\n    random_search = RandomizedSearchCV(\n        regressor,\n        param_distributions=param_dist,\n        n_iter=param_comb,\n        scoring=\"neg_root_mean_squared_error\",\n        cv=5,\n        verbose=4,\n        random_state=42,\n    )\n\n    random_search.fit(x, y)\n    regressor_best = random_search.best_estimator_\n\n    trained_model.metadata[\"framework\"] = \"RandomForestRegressor\"\n    os.makedirs(trained_model.path, exist_ok=True)\n    joblib.dump(regressor_best, os.path.join(trained_model.path, \"model.joblib\"))\n\n"
           ],
           "image": "python:3.10"
         }
@@ -398,22 +398,22 @@
             "name": "data-transformation"
           }
         },
-        "deploy-xgboost-model": {
+        "deploy-rf-model": {
           "cachingOptions": {
             "enableCache": true
           },
           "componentRef": {
-            "name": "comp-deploy-xgboost-model"
+            "name": "comp-deploy-rf-model"
           },
           "dependentTasks": [
-            "training"
+            "training-hyperp-tuning"
           ],
           "inputs": {
             "artifacts": {
               "model": {
                 "taskOutputArtifact": {
                   "outputArtifactKey": "trained_model",
-                  "producerTask": "training"
+                  "producerTask": "training-hyperp-tuning"
                 }
               }
             },
@@ -426,7 +426,7 @@
             }
           },
           "taskInfo": {
-            "name": "deploy-xgboost-model"
+            "name": "deploy-rf-model"
           }
         },
         "model-evaluation": {
@@ -438,7 +438,7 @@
           },
           "dependentTasks": [
             "train-validation-test-split",
-            "training"
+            "training-hyperp-tuning"
           ],
           "inputs": {
             "artifacts": {
@@ -451,7 +451,7 @@
               "training_model": {
                 "taskOutputArtifact": {
                   "outputArtifactKey": "trained_model",
-                  "producerTask": "training"
+                  "producerTask": "training-hyperp-tuning"
                 }
               }
             }
@@ -484,12 +484,12 @@
             "name": "train-validation-test-split"
           }
         },
-        "training": {
+        "training-hyperp-tuning": {
           "cachingOptions": {
             "enableCache": true
           },
           "componentRef": {
-            "name": "comp-training"
+            "name": "comp-training-hyperp-tuning"
           },
           "dependentTasks": [
             "train-validation-test-split"
@@ -505,7 +505,7 @@
             }
           },
           "taskInfo": {
-            "name": "training"
+            "name": "training-hyperp-tuning"
           }
         }
       }

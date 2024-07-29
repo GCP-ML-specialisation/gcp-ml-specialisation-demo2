@@ -7,7 +7,11 @@ from pre_processing_modules import (
     train_validation_test_split,
 )
 
-from model import model_evaluation, training, deploy_xgboost_model
+from model import (
+    model_evaluation,
+    training_hyperp_tuning,
+    deploy_rf_model,
+)
 
 
 PROJECT_ID = "pa-poc-mlspec-2"
@@ -44,14 +48,14 @@ def pipeline(
         df_train=feature_engineered_df.outputs["dataset_train"]
     )
 
-    model = training(df_train=ready_dataset.outputs["dataset_train"])
+    model = training_hyperp_tuning(df_train=ready_dataset.outputs["dataset_train"])
 
     model_evaluation(
         test_set=ready_dataset.outputs["dataset_valid"],
         training_model=model.outputs["trained_model"],
     )
 
-    deploy_xgboost_model(
+    deploy_rf_model(
         model=model.outputs["trained_model"],
         project_id=PROJECT_ID,
     )
