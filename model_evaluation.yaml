@@ -66,10 +66,10 @@ deploymentSpec:
           \ = r2_score(y_test, xgb_y_pred)\n    rmse = sqrt(mean_squared_error(y_test,\
           \ xgb_y_pred))\n\n    training_model.metadata[\"mean_absolute_error\"] =\
           \ mae\n    training_model.metadata[\"mean_squared_error\"] = mse\n    training_model.metadata[\"\
-          R2_Score\"] = r2\n    training_model.metadata[\"root_mean_absolute_error\"\
+          R2_Score\"] = r2\n    training_model.metadata[\"root_mean_squared_error\"\
           ] = rmse\n\n    kpi.log_metric(\"mean_absolute_error\", mae)\n    kpi.log_metric(\"\
           mean_squared_error\", mse)\n    kpi.log_metric(\"R2_Score\", r2)\n    kpi.log_metric(\"\
-          root_mean_absolute_error\", rmse)\n\n"
+          root_mean_squared_error\", rmse)\n\n"
         image: python:3.10
 pipelineInfo:
   name: model-evaluation

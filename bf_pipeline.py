@@ -23,8 +23,8 @@ aip.init(project=PROJECT_ID, staging_bucket=BUCKET_URI, service_account=SERVICE_
 
 
 @dsl.pipeline(
-    name="intro-pipeline-unique",
-    description="A simple intro pipeline",
+    name="BF Pipeline",
+    description="Pipeline to predict purchased amount using the Black Friday Dataset",
     pipeline_root=PIPELINE_ROOT,
 )
 def pipeline(

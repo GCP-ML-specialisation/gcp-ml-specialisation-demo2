@@ -32,9 +32,8 @@ def training_hyperp_tuning(
     from sklearn.ensemble import RandomForestRegressor
     from sklearn.model_selection import (
         RandomizedSearchCV,
-        StratifiedKFold,
     )
-    from scipy.stats import randint, uniform
+    from scipy.stats import randint
 
     df_train = pd.read_csv(df_train.path + ".csv")
 
@@ -45,38 +44,20 @@ def training_hyperp_tuning(
 
     # Define the parameter distributions
     param_dist = {
-        "n_estimators": randint(50, 500),  # Number of trees in the forest
-        "max_features": [
-            "auto",
-            "sqrt",
-            "log2",
-        ],  # Number of features to consider at each split
-        "max_depth": randint(10, 100),  # Maximum depth of the tree
-        "min_samples_split": randint(
-            2, 20
-        ),  # Minimum number of samples required to split a node
-        "min_samples_leaf": randint(
-            1, 20
-        ),  # Minimum number of samples required to be at a leaf node
-        "bootstrap": [
-            True,
-            False,
-        ],  # Whether bootstrap samples are used when building trees
-        "min_impurity_decrease": uniform(
-            0, 0.1
-        ),  # Threshold for early stopping in tree growth
+        "max_depth": randint(5, 15),  # Maximum depth of the tree
+        "n_estimators": randint(9, 13),
+        "min_samples_leaf": randint(1, 3),
     }
 
-    param_comb = 20
+    param_comb = 5
 
     random_search = RandomizedSearchCV(
         regressor,
         param_distributions=param_dist,
         n_iter=param_comb,
         scoring="neg_root_mean_squared_error",
-        cv=5,
+        cv=10,
         verbose=4,
-        random_state=42,
     )
 
     random_search.fit(x, y)
