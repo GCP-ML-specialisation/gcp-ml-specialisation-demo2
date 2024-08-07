@@ -1,0 +1,132 @@
+# PIPELINE DEFINITION
+# Name: deploy-rf-model
+# Inputs:
+#    model: system.Model
+#    project_id: str
+# Outputs:
+#    vertex_endpoint: system.Artifact
+#    vertex_model: system.Model
+components:
+  comp-deploy-rf-model:
+    executorLabel: exec-deploy-rf-model
+    inputDefinitions:
+      artifacts:
+        model:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+          description: The model to deploy.
+      parameters:
+        project_id:
+          description: The project ID of the Vertex AI Endpoint.
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        vertex_endpoint:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+          description: The deployed Vertex AI Endpoint.
+        vertex_model:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+          description: The deployed Vertex AI Model.
+deploymentSpec:
+  executors:
+    exec-deploy-rf-model:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - deploy_rf_model
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'google-cloud-aiplatform==1.25.0'\
+          \ && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef deploy_rf_model(\n    model: Input[Model],\n    project_id: str,\n\
+          \    vertex_endpoint: Output[Artifact],\n    vertex_model: Output[Model],\n\
+          ):\n    \"\"\"Deploys an XGBoost model to Vertex AI Endpoint.\n\n    Args:\n\
+          \        model: The model to deploy.\n        project_id: The project ID\
+          \ of the Vertex AI Endpoint.\n\n    Returns:\n        vertex_endpoint: The\
+          \ deployed Vertex AI Endpoint.\n        vertex_model: The deployed Vertex\
+          \ AI Model.\n    \"\"\"\n    from google.cloud import aiplatform\n\n   \
+          \ aiplatform.init(project=project_id)\n\n    deployed_model = aiplatform.Model.upload(\n\
+          \        display_name=\"bf_model\",\n        artifact_uri=model.uri,\n \
+          \       serving_container_image_uri=\"us-docker.pkg.dev/vertex-ai/prediction/sklearn-cpu.1-3:latest\"\
+          ,\n    )\n    endpoint = deployed_model.deploy(\n        deployed_model_display_name=\"\
+          bf_random_forest_model\",\n        machine_type=\"n1-standard-4\",\n   \
+          \ )\n\n    vertex_endpoint.uri = endpoint.resource_name\n    vertex_model.uri\
+          \ = deployed_model.resource_name\n\n"
+        image: python:3.10
+pipelineInfo:
+  name: deploy-rf-model
+root:
+  dag:
+    outputs:
+      artifacts:
+        vertex_endpoint:
+          artifactSelectors:
+          - outputArtifactKey: vertex_endpoint
+            producerSubtask: deploy-rf-model
+        vertex_model:
+          artifactSelectors:
+          - outputArtifactKey: vertex_model
+            producerSubtask: deploy-rf-model
+    tasks:
+      deploy-rf-model:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-deploy-rf-model
+        inputs:
+          artifacts:
+            model:
+              componentInputArtifact: model
+          parameters:
+            project_id:
+              componentInputParameter: project_id
+        taskInfo:
+          name: deploy-rf-model
+  inputDefinitions:
+    artifacts:
+      model:
+        artifactType:
+          schemaTitle: system.Model
+          schemaVersion: 0.0.1
+        description: The model to deploy.
+    parameters:
+      project_id:
+        description: The project ID of the Vertex AI Endpoint.
+        parameterType: STRING
+  outputDefinitions:
+    artifacts:
+      vertex_endpoint:
+        artifactType:
+          schemaTitle: system.Artifact
+          schemaVersion: 0.0.1
+        description: The deployed Vertex AI Endpoint.
+      vertex_model:
+        artifactType:
+          schemaTitle: system.Model
+          schemaVersion: 0.0.1
+        description: The deployed Vertex AI Model.
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.8.0

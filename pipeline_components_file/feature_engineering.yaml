@@ -1,30 +1,20 @@
 # PIPELINE DEFINITION
 # Name: data-transformation
 # Inputs:
-#    df_test: system.Dataset
 #    df_train: system.Dataset
 # Outputs:
-#    dataset_test: system.Dataset
 #    dataset_train: system.Dataset
 components:
   comp-data-transformation:
     executorLabel: exec-data-transformation
     inputDefinitions:
       artifacts:
-        df_test:
-          artifactType:
-            schemaTitle: system.Dataset
-            schemaVersion: 0.0.1
         df_train:
           artifactType:
             schemaTitle: system.Dataset
             schemaVersion: 0.0.1
     outputDefinitions:
       artifacts:
-        dataset_test:
-          artifactType:
-            schemaTitle: system.Dataset
-            schemaVersion: 0.0.1
         dataset_train:
           artifactType:
             schemaTitle: system.Dataset
@@ -43,7 +33,7 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.7.0'\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
           \  python3 -m pip install --quiet --no-warn-script-location 'pandas' 'gcsfs'\
           \ 'scikit-learn==1.3.0' 'numpy==1.23.5' && \"$0\" \"$@\"\n"
@@ -58,24 +48,19 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef data_transformation(\n    df_train: Input[Dataset],\n    df_test:\
-          \ Input[Dataset],\n    dataset_train: Output[Dataset],\n    dataset_test:\
+          \ *\n\ndef data_transformation(\n    df_train: Input[Dataset],\n    dataset_train:\
           \ Output[Dataset],\n):\n\n    import pandas as pd\n    from sklearn.preprocessing\
           \ import LabelEncoder\n    import numpy as np\n\n    df_train = pd.read_csv(df_train.path\
-          \ + \".csv\")\n    df_test = pd.read_csv(df_test.path + \".csv\")\n\n  \
-          \  # Handle categorical to integer transformation for 'Gender'\n    gender_mapping\
-          \ = {\"F\": 0, \"M\": 1}\n    df_train[\"Gender\"] = df_train[\"Gender\"\
-          ].map(gender_mapping)\n    df_test[\"Gender\"] = df_test[\"Gender\"].map(gender_mapping)\n\
-          \n    # Columns to encode\n    cols = [\"Age\", \"City_Category\", \"Stay_In_Current_City_Years\"\
-          ]\n\n    # Combine train and test for consistent encoding\n    combined_df\
-          \ = pd.concat([df_train[cols], df_test[cols]], axis=0)\n\n    # Initialize\
-          \ the LabelEncoder\n    le = LabelEncoder()\n\n    # Apply LabelEncoder\
-          \ to each column and transform back to DataFrame\n    for col in cols:\n\
-          \        combined_df[col] = le.fit_transform(combined_df[col])\n\n    #\
-          \ Split the combined data back into train and test sets\n    df_train[cols]\
-          \ = combined_df.iloc[: len(df_train), :]\n    df_test[cols] = combined_df.iloc[len(df_train)\
-          \ :, :]\n\n    df_train[\"Purchase\"] = np.log1p(df_train[\"Purchase\"])\n\
-          \n    df_train.to_csv(dataset_train.path + \".csv\", index=False)\n    df_test.to_csv(dataset_test.path\
+          \ + \".csv\")\n\n    # Handle categorical to integer transformation for\
+          \ 'Gender'\n    gender_mapping = {\"F\": 0, \"M\": 1}\n    df_train[\"Gender\"\
+          ] = df_train[\"Gender\"].map(gender_mapping)\n\n    # Columns to encode\n\
+          \    cols = [\"Age\", \"City_Category\", \"Stay_In_Current_City_Years\"\
+          ]\n\n    combined_df = df_train[cols]\n\n    # Initialize the LabelEncoder\n\
+          \    le = LabelEncoder()\n\n    # Apply LabelEncoder to each column and\
+          \ transform back to DataFrame\n    for col in cols:\n        combined_df[col]\
+          \ = le.fit_transform(combined_df[col])\n\n    # Split the combined data\
+          \ back into train and test sets\n    df_train[cols] = combined_df\n    df_train[\"\
+          Purchase\"] = np.log1p(df_train[\"Purchase\"])\n    df_train.to_csv(dataset_train.path\
           \ + \".csv\", index=False)\n\n"
         image: python:3.10
 pipelineInfo:
@@ -84,10 +69,6 @@ root:
   dag:
     outputs:
       artifacts:
-        dataset_test:
-          artifactSelectors:
-          - outputArtifactKey: dataset_test
-            producerSubtask: data-transformation
         dataset_train:
           artifactSelectors:
           - outputArtifactKey: dataset_train
@@ -100,31 +81,21 @@ root:
           name: comp-data-transformation
         inputs:
           artifacts:
-            df_test:
-              componentInputArtifact: df_test
             df_train:
               componentInputArtifact: df_train
         taskInfo:
           name: data-transformation
   inputDefinitions:
     artifacts:
-      df_test:
-        artifactType:
-          schemaTitle: system.Dataset
-          schemaVersion: 0.0.1
       df_train:
         artifactType:
           schemaTitle: system.Dataset
           schemaVersion: 0.0.1
   outputDefinitions:
     artifacts:
-      dataset_test:
-        artifactType:
-          schemaTitle: system.Dataset
-          schemaVersion: 0.0.1
       dataset_train:
         artifactType:
           schemaTitle: system.Dataset
           schemaVersion: 0.0.1
 schemaVersion: 2.1.0
-sdkVersion: kfp-2.7.0
+sdkVersion: kfp-2.8.0

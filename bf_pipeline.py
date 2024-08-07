@@ -13,10 +13,15 @@ from model import (
     deploy_rf_model,
 )
 
+import configparser
 
-PROJECT_ID = "pa-poc-mlspec-2"
-BUCKET_URI = "gs://pa_poc_mlspec_2_pipeline/"
-SERVICE_ACCOUNT = "121050757542-compute@developer.gserviceaccount.com"
+config = configparser.ConfigParser()
+config.read("config.ini")
+
+
+PROJECT_ID = config["gcp_vars"]["PROJECT_ID"]
+BUCKET_URI = config["gcp_vars"]["BUCKET_URI"]
+SERVICE_ACCOUNT = config["gcp_vars"]["SERVICE_ACCOUNT"]
 PIPELINE_ROOT = "{}/pipeline_root".format(BUCKET_URI)
 
 aip.init(project=PROJECT_ID, staging_bucket=BUCKET_URI, service_account=SERVICE_ACCOUNT)
@@ -29,7 +34,6 @@ aip.init(project=PROJECT_ID, staging_bucket=BUCKET_URI, service_account=SERVICE_
 )
 def pipeline(
     train_name: str = "train.csv",
-    test_name: str = "test.csv",
     BUCKET_URI: str = BUCKET_URI,
     raw_folder: str = "raw_data/",
 ):
@@ -38,17 +42,17 @@ def pipeline(
         bucket_URI=BUCKET_URI,
         folder=raw_folder,
         train=train_name,
-        test=test_name,
     )
     feature_engineered_df = data_transformation(
         df_train=pre_processed_df.outputs["dataset_train"],
-        df_test=pre_processed_df.outputs["dataset_test"],
     )
     ready_dataset = train_validation_test_split(
         df_train=feature_engineered_df.outputs["dataset_train"]
     )
 
-    model = training_hyperp_tuning(df_train=ready_dataset.outputs["dataset_train"])
+    model = training_hyperp_tuning(
+        df_train=ready_dataset.outputs["dataset_train"],
+    )
 
     model_evaluation(
         test_set=ready_dataset.outputs["dataset_valid"],
@@ -61,4 +65,7 @@ def pipeline(
     )
 
 
-compiler.Compiler().compile(pipeline_func=pipeline, package_path="bf_pipeline.json")
+compiler.Compiler().compile(
+    pipeline_func=pipeline,
+    package_path=config["pipeline"]["template_path"],
+)

@@ -18,13 +18,14 @@ from kfp.v2.dsl import (
         "joblib",
         "scipy",
     ],
-    output_component_file="training.yaml",
+    output_component_file="./pipeline_components_file/training.yaml",
     base_image="python:3.10",
 )
 def training_hyperp_tuning(
     df_train: Input[Dataset],
     trained_model: Output[Model],
 ):
+    import * from model_evaluation
 
     import pandas as pd
     import os
@@ -76,7 +77,7 @@ def training_hyperp_tuning(
         "scikit-learn==1.3.0",
         "joblib",
     ],
-    output_component_file="model_evaluation.yaml",
+    output_component_file="./pipeline_components_file/model_evaluation.yaml",
     base_image="python:3.10",
 )
 def model_evaluation(
@@ -119,6 +120,7 @@ def model_evaluation(
 
 @component(
     packages_to_install=["google-cloud-aiplatform==1.25.0"],
+    output_component_file="./pipeline_components_file/model_deployment.yaml",
     base_image="python:3.10",
 )
 def deploy_rf_model(

@@ -33,7 +33,7 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.7.0'\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
           \  python3 -m pip install --quiet --no-warn-script-location 'pandas' 'gcsfs'\
           \ 'numpy==1.23.5' 'scikit-learn==1.3.0' 'joblib' 'scipy' && \"$0\" \"$@\"\
@@ -53,7 +53,7 @@ deploymentSpec:
           \ Output[Model],\n):\n\n    import pandas as pd\n    import os\n    import\
           \ joblib\n    from sklearn.ensemble import RandomForestRegressor\n    from\
           \ sklearn.model_selection import (\n        RandomizedSearchCV,\n    )\n\
-          \    from scipy.stats import randint, uniform\n\n    df_train = pd.read_csv(df_train.path\
+          \    from scipy.stats import randint\n\n    df_train = pd.read_csv(df_train.path\
           \ + \".csv\")\n\n    x = df_train.drop(\"Purchase\", axis=1)\n    y = df_train[\"\
           Purchase\"]\n\n    regressor = RandomForestRegressor(n_estimators=10, random_state=42,\
           \ oob_score=True)\n\n    # Define the parameter distributions\n    param_dist\
@@ -103,4 +103,4 @@ root:
           schemaTitle: system.Model
           schemaVersion: 0.0.1
 schemaVersion: 2.1.0
-sdkVersion: kfp-2.7.0
+sdkVersion: kfp-2.8.0
