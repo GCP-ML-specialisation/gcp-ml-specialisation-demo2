@@ -25,8 +25,6 @@ def training_hyperp_tuning(
     df_train: Input[Dataset],
     trained_model: Output[Model],
 ):
-    import * from model_evaluation
-
     import pandas as pd
     import os
     import joblib

@@ -11,6 +11,8 @@ from kfp.v2.dsl import component, Input, Output, Dataset
     output_component_file="./pipeline_components_file/feature_engineering.yaml",
     base_image="python:3.10",
 )
+
+
 def data_transformation(
     df_train: Input[Dataset],
     dataset_train: Output[Dataset],
