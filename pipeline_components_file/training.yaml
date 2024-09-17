@@ -50,7 +50,7 @@ deploymentSpec:
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
           \ *\n\ndef training_hyperp_tuning(\n    df_train: Input[Dataset],\n    trained_model:\
-          \ Output[Model],\n):\n\n    import pandas as pd\n    import os\n    import\
+          \ Output[Model],\n):\n    import pandas as pd\n    import os\n    import\
           \ joblib\n    from sklearn.ensemble import RandomForestRegressor\n    from\
           \ sklearn.model_selection import (\n        RandomizedSearchCV,\n    )\n\
           \    from scipy.stats import randint\n\n    df_train = pd.read_csv(df_train.path\

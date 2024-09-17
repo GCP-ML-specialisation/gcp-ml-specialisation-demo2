@@ -1,6 +1,6 @@
 import requests
 import subprocess
-import json
+from pprint import pprint
 
 # Get the access token using gcloud
 access_token = (
@@ -9,13 +9,10 @@ access_token = (
     .strip()
 )
 
-ENDPOINT_ID = "3626204741568036864"
-PROJECT_ID = "121050757542"
-INPUT_DATA_FILE = "INPUT-JSON"
 
 # Define the project ID, endpoint ID, and input data file
 project_id = "121050757542"
-endpoint_id = "3626204741568036864"
+endpoint_id = "1928034321235443712"
 
 input_data = {"instances": [[1.0, 2.0, 17.0, 2.0, 0.0, 1.0, 5.0, 8.0]]}
 # Define the endpoint URL
@@ -31,4 +28,4 @@ headers = {
 response = requests.post(url, headers=headers, json=input_data)
 
 # Print the response
-print(response.json())
+pprint(response.json())
